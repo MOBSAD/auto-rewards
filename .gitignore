@@ -1,21 +1,17 @@
 # Virtual Environment
-bin/
-lib/
-lib64/
-pyvenv.cfg
 venv/
 .venv/
 env/
 ENV/
-
-# Python cache
+bin/
+lib/
+lib64/
+pyvenv.cfg
 __pycache__/
 *.py[cod]
 *.class
 
-# Arquivos de sistema
+# Outros arquivos ignorados
 .DS_Store
-Thumbs.db
-
-# Ambiente local
 .env
+Thumbs.db
