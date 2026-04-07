@@ -11,7 +11,8 @@ __pycache__/
 *.py[cod]
 *.class
 
-# Outros arquivos ignorados
+# Outros
 .DS_Store
 .env
+.pyre/
 Thumbs.db
