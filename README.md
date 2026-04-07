@@ -36,7 +36,7 @@ Como você está utilizando **Arch Linux**, pode instalar as dependências neces
 
     ```bash
     git clone [https://github.com/MOBSAD/auto-rewards.git](https://github.com/MOBSAD/auto-rewards.git)
-    cd nome-do-repo
+    cd auto-rewards
     ```
 
 2. **Configuração**:
