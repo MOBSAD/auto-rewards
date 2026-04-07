@@ -1,0 +1,21 @@
+# Virtual Environment
+bin/
+lib/
+lib64/
+pyvenv.cfg
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.class
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Ambiente local
+.env
