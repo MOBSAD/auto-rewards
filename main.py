@@ -1,12 +1,13 @@
 from random import randrange as rr
 from string import ascii_letters as l
+import sys
 import subprocess
 from webbrowser import open
 import webbrowser
 from time import sleep as sl
 from subprocess import run
 
-tabs = 15
+tabs = int(sys.argv[1])
 
 def create_term():
     term = ""
