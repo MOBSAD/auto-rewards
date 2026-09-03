@@ -1,6 +1,7 @@
 import argparse
 import math
 import os
+from pathlib import Path
 from random import randrange
 import shlex
 import shutil
@@ -8,6 +9,7 @@ from string import ascii_letters
 import subprocess
 import sys
 from time import sleep
+import tomllib
 from urllib.parse import urlencode
 import webbrowser
 
@@ -106,7 +108,50 @@ def positive_number(value):
     return number
 
 
-def parse_arguments(arguments=None):
+def get_config_path(environment=None):
+    environment = os.environ if environment is None else environment
+    config_home = environment.get("XDG_CONFIG_HOME")
+    if config_home:
+        base_directory = Path(config_home).expanduser()
+    else:
+        home_directory = environment.get("HOME")
+        base_directory = (
+            Path(home_directory).expanduser() if home_directory else Path.home()
+        ) / ".config"
+
+    return base_directory / "auto-rewards" / "config.toml"
+
+
+def load_config(config_path):
+    if not config_path.exists():
+        return None
+
+    try:
+        with config_path.open("rb") as config_file:
+            config = tomllib.load(config_file)
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(f"TOML inválido: {error}") from None
+    except OSError as error:
+        raise ValueError(f"não foi possível ler o arquivo: {error}") from None
+
+    if "searches" in config:
+        searches = config["searches"]
+        if isinstance(searches, bool) or not isinstance(searches, int):
+            raise ValueError("'searches' deve ser um número inteiro")
+        if searches <= 0:
+            raise ValueError("'searches' deve ser maior que zero")
+
+    if "delay" in config:
+        delay = config["delay"]
+        if isinstance(delay, bool) or not isinstance(delay, (int, float)):
+            raise ValueError("'delay' deve ser um número")
+        if not math.isfinite(delay) or delay <= 0:
+            raise ValueError("'delay' deve ser maior que zero")
+
+    return config
+
+
+def parse_arguments(arguments=None, environment=None):
     parser = argparse.ArgumentParser(
         description="Automatiza pesquisas de recompensas no Linux/Wayland."
     )
@@ -114,13 +159,13 @@ def parse_arguments(arguments=None):
         "-n",
         "--searches",
         type=positive_integer,
-        default=DEFAULT_SEARCH_COUNT,
+        default=None,
         help=f"quantidade de pesquisas (padrão: {DEFAULT_SEARCH_COUNT})",
     )
     parser.add_argument(
         "--delay",
         type=positive_number,
-        default=DEFAULT_SEARCH_DELAY_SECONDS,
+        default=None,
         metavar="SECONDS",
         help=f"segundos entre pesquisas (padrão: {DEFAULT_SEARCH_DELAY_SECONDS})",
     )
@@ -135,7 +180,24 @@ def parse_arguments(arguments=None):
         help="mostra informações de depuração",
     )
 
-    return parser.parse_args(arguments)
+    options = parser.parse_args(arguments)
+    config_path = get_config_path(environment)
+
+    try:
+        config = load_config(config_path)
+    except ValueError as error:
+        parser.error(f"config inválida em {config_path}: {error}")
+
+    config_values = config if config is not None else {}
+    options.searches = options.searches or config_values.get(
+        "searches", DEFAULT_SEARCH_COUNT
+    )
+    options.delay = options.delay or config_values.get(
+        "delay", DEFAULT_SEARCH_DELAY_SECONDS
+    )
+    options.config_path = config_path if config is not None else None
+
+    return options
 
 
 def detect_session(environment=None):
@@ -298,6 +360,8 @@ def main(arguments=None):
         print_summary(
             environment_info, options.searches, options.delay, options.dry_run
         )
+        if options.config_path:
+            print_verbose(f"Config carregada: {options.config_path}", options.verbose)
         print_verbose(
             "Ambiente: "
             f"browser={format_browser_name(environment_info['browser'])}, "

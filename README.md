@@ -14,7 +14,7 @@ Este script em Python automatiza o processo de pesquisa no Microsoft Bing para a
 Você precisa estar com uma conta microsoft logada.
 Como você está utilizando **Arch Linux**, pode instalar as dependências necessárias diretamente via terminal:
 
-1. **Python 3**: Certifique-se de que o Python está instalado.
+1. **Python 3.11 ou mais recente**: O projeto usa `tomllib`, incluído na biblioteca padrão a partir do Python 3.11.
 2. **ydotool**: Ferramenta essencial para simular entradas de teclado no Wayland.
 
     ```bash
@@ -35,20 +35,62 @@ Como você está utilizando **Arch Linux**, pode instalar as dependências neces
 1. **Clone o repositório**:
 
     ```bash
-    git clone [https://github.com/MOBSAD/auto-rewards.git](https://github.com/MOBSAD/auto-rewards.git)
+    git clone https://github.com/MOBSAD/auto-rewards.git
     cd auto-rewards
     ```
 
-2. **Configuração**:
-    Abra o arquivo `main.py` e ajuste a variável `tabs` para a quantidade de pesquisas que deseja realizar (o padrão no script é 15).
-
-3. **Execução**:
+2. **Execução**:
     Inicie o script com o navegador de sua preferência (como o Thorium) já aberto:
 
     ```bash
-    source bin/activate
     python main.py
     ```
+
+    Por padrão, são realizadas 15 pesquisas com intervalo de 7 segundos. As opções disponíveis podem ser consultadas com:
+
+    ```bash
+    python main.py --help
+    ```
+
+    Exemplos:
+
+    ```bash
+    python main.py -n 20 --delay 5
+    python main.py --dry-run
+    python main.py --verbose
+    python main.py --dry-run --verbose
+    ```
+
+## ⚙️ Configuração persistente
+
+A configuração é opcional. Quando presente, o arquivo deve ficar em:
+
+```text
+~/.config/auto-rewards/config.toml
+```
+
+Se `XDG_CONFIG_HOME` estiver definido, o caminho usado será:
+
+```text
+$XDG_CONFIG_HOME/auto-rewards/config.toml
+```
+
+Exemplo:
+
+```toml
+searches = 15
+delay = 7
+```
+
+`searches` deve ser um número inteiro maior que zero. `delay` aceita um número inteiro ou decimal maior que zero. O arquivo não é obrigatório nem criado automaticamente.
+
+Os valores são escolhidos nesta ordem de prioridade:
+
+```text
+argumentos da CLI > config.toml > defaults internos
+```
+
+Por exemplo, com `searches = 15` no arquivo, `python main.py -n 5` executa cinco pesquisas.
 
 ## ⚠️ Observações
 
