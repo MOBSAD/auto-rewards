@@ -24,24 +24,55 @@ def create_term():
     return term
 
 
-def open_tabs(tab_count, search_delay):
+def print_verbose(message, verbose):
+    if verbose:
+        print(f"[verbose] {message}")
+
+
+def open_tabs(tab_count, search_delay, dry_run=False, verbose=False):
     base_url = "https://www.bing.com/search?q=como "
     end_url = "&form=TSASDS"
 
     for completed_searches in range(1, tab_count + 1):
-        search_url = base_url + create_term() + end_url
-        webbrowser.open(search_url)
-        sleep(search_delay)
-        print_progress(completed_searches, tab_count)
+        search_term = create_term()
+        search_url = base_url + search_term + end_url
+        print_verbose(f"Query gerada: como {search_term}", verbose)
+        print_verbose(f"URL gerada: {search_url}", verbose)
 
-    close_tabs(tab_count)
+        if dry_run:
+            print(f"[dry-run] Abriria no navegador: {search_url}")
+            print(f"[dry-run] Aguardaria {format_delay(search_delay)}")
+        else:
+            print_verbose("Abrindo URL no navegador padrão", verbose)
+            webbrowser.open(search_url)
+            print_verbose(f"Aguardando {format_delay(search_delay)}", verbose)
+            sleep(search_delay)
+            print_progress(completed_searches, tab_count)
+
+    close_tabs(tab_count, dry_run, verbose)
 
 
-def close_tabs(tab_count):
-    for _ in range(tab_count):
+def close_tabs(tab_count, dry_run=False, verbose=False):
+    command = ["ydotool", "key", "29:1", "17:1", "17:0", "29:0"]
+
+    if dry_run:
+        print(
+            f"[dry-run] Fecharia {tab_count} abas com ydotool "
+            f"(intervalo: {format_delay(TAB_CLOSE_DELAY_SECONDS)})"
+        )
+        print_verbose(f"Comando de fechamento: {' '.join(command)}", verbose)
+        return
+
+    for tab_number in range(1, tab_count + 1):
+        print_verbose(
+            f"Fechando aba {tab_number}/{tab_count}: {' '.join(command)}", verbose
+        )
         subprocess.run(
-            ["ydotool", "key", "29:1", "17:1", "17:0", "29:0"],
+            command,
             check=False,
+        )
+        print_verbose(
+            f"Aguardando {format_delay(TAB_CLOSE_DELAY_SECONDS)}", verbose
         )
         sleep(TAB_CLOSE_DELAY_SECONDS)
 
@@ -87,6 +118,16 @@ def parse_arguments(arguments=None):
         default=DEFAULT_SEARCH_DELAY_SECONDS,
         metavar="SECONDS",
         help=f"segundos entre pesquisas (padrão: {DEFAULT_SEARCH_DELAY_SECONDS})",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="mostra as ações sem abrir ou fechar abas",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="mostra informações de depuração",
     )
 
     return parser.parse_args(arguments)
@@ -134,7 +175,7 @@ def find_browser(environment=None):
     return getattr(browser_controller, "name", browser_controller.__class__.__name__)
 
 
-def check_environment(environment=None):
+def check_environment(environment=None, require_dependencies=True):
     session_type = detect_session(environment)
     compositor = detect_compositor(environment)
     browser = find_browser(environment)
@@ -153,12 +194,12 @@ def check_environment(environment=None):
             file=sys.stderr,
         )
 
-    if shutil.which("ydotool") is None:
+    if require_dependencies and shutil.which("ydotool") is None:
         print("[x] ydotool não encontrado.", file=sys.stderr)
         print("Instale no Arch Linux: sudo pacman -S ydotool", file=sys.stderr)
         environment_ready = False
 
-    if browser is None:
+    if require_dependencies and browser is None:
         print("[x] Nenhum navegador disponível foi encontrado.", file=sys.stderr)
         environment_ready = False
 
@@ -173,6 +214,9 @@ def check_environment(environment=None):
 
 
 def format_browser_name(browser):
+    if browser is None:
+        return "Unknown"
+
     try:
         command = shlex.split(browser)[0]
     except (ValueError, IndexError):
@@ -199,7 +243,7 @@ def format_delay(delay):
     return f"{delay:g}s"
 
 
-def print_summary(environment_info, search_count, search_delay):
+def print_summary(environment_info, search_count, search_delay, dry_run=False):
     browser = format_browser_name(environment_info["browser"])
     session = format_session(
         environment_info["session"], environment_info["compositor"]
@@ -211,6 +255,8 @@ def print_summary(environment_info, search_count, search_delay):
     print(f"Session:   {session}")
     print(f"Searches:  {search_count}")
     print(f"Delay:     {format_delay(search_delay)}")
+    if dry_run:
+        print("Mode:      Dry run")
     print()
 
 
@@ -229,17 +275,42 @@ def print_completion(search_count):
         print(f"{search_count} pesquisas concluídas.")
 
 
+def print_dry_run_completion(search_count):
+    if search_count == 1:
+        print("Simulação concluída: 1 pesquisa planejada.")
+    else:
+        print(f"Simulação concluída: {search_count} pesquisas planejadas.")
+
+
 def main(arguments=None):
     options = parse_arguments(arguments)
 
     try:
-        environment_info = check_environment()
+        environment_info = check_environment(require_dependencies=not options.dry_run)
         if environment_info is None:
             return 1
 
-        print_summary(environment_info, options.searches, options.delay)
-        open_tabs(options.searches, options.delay)
-        print_completion(options.searches)
+        print_summary(
+            environment_info, options.searches, options.delay, options.dry_run
+        )
+        print_verbose(
+            "Ambiente: "
+            f"browser={format_browser_name(environment_info['browser'])}, "
+            "sessão="
+            f"{format_session(environment_info['session'], environment_info['compositor'])}",
+            options.verbose,
+        )
+        print_verbose(f"Delay principal: {format_delay(options.delay)}", options.verbose)
+        open_tabs(
+            options.searches,
+            options.delay,
+            dry_run=options.dry_run,
+            verbose=options.verbose,
+        )
+        if options.dry_run:
+            print_dry_run_completion(options.searches)
+        else:
+            print_completion(options.searches)
     except KeyboardInterrupt:
         print("\nExecução interrompida.", file=sys.stderr)
         return 130
