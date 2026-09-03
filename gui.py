@@ -8,10 +8,13 @@ import main as core
 
 class AutoRewardsApp(ctk.CTk):
     def __init__(self):
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
         super().__init__()
         self.title("auto-rewards")
-        self.geometry("480x410")
-        self.resizable(False, False)
+        self.geometry("580x600")
+        self.minsize(520, 560)
+        self.configure(fg_color="#0f1115")
 
         self.cancel_event = None
         self.worker = None
@@ -29,76 +32,156 @@ class AutoRewardsApp(ctk.CTk):
 
     def _build_widgets(self):
         self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(3, weight=1)
+
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.grid(row=0, column=0, padx=32, pady=(28, 20), sticky="ew")
+        header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            self,
+            header,
             text="auto-rewards",
-            font=ctk.CTkFont(size=24, weight="bold"),
-        ).grid(row=0, column=0, padx=24, pady=(24, 18))
+            font=ctk.CTkFont(size=28, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew")
+        ctk.CTkLabel(
+            header,
+            text="Automate reward searches on Linux / Wayland",
+            text_color="#9ca3af",
+            anchor="w",
+        ).grid(row=1, column=0, pady=(4, 0), sticky="ew")
 
-        info_frame = ctk.CTkFrame(self)
-        info_frame.grid(row=1, column=0, padx=24, sticky="ew")
+        info_frame = ctk.CTkFrame(self, corner_radius=12, fg_color="#191c22")
+        info_frame.grid(row=1, column=0, padx=32, pady=(0, 14), sticky="ew")
         info_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(info_frame, text="Browser:").grid(
-            row=0, column=0, padx=(16, 8), pady=(12, 6), sticky="w"
+        ctk.CTkLabel(
+            info_frame,
+            text="ENVIRONMENT",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#9ca3af",
+        ).grid(row=0, column=0, columnspan=2, padx=20, pady=(16, 12), sticky="w")
+        ctk.CTkLabel(info_frame, text="Browser", text_color="#9ca3af").grid(
+            row=1, column=0, padx=(20, 20), pady=(0, 8), sticky="w"
         )
-        ctk.CTkLabel(info_frame, textvariable=self.browser_var).grid(
-            row=0, column=1, padx=(0, 16), pady=(12, 6), sticky="w"
+        ctk.CTkLabel(
+            info_frame,
+            textvariable=self.browser_var,
+            font=ctk.CTkFont(weight="bold"),
+        ).grid(row=1, column=1, padx=(0, 20), pady=(0, 8), sticky="e")
+        ctk.CTkLabel(info_frame, text="Session", text_color="#9ca3af").grid(
+            row=2, column=0, padx=(20, 20), pady=(0, 16), sticky="w"
         )
-        ctk.CTkLabel(info_frame, text="Session:").grid(
-            row=1, column=0, padx=(16, 8), pady=(6, 12), sticky="w"
-        )
-        ctk.CTkLabel(info_frame, textvariable=self.session_var).grid(
-            row=1, column=1, padx=(0, 16), pady=(6, 12), sticky="w"
-        )
+        ctk.CTkLabel(
+            info_frame,
+            textvariable=self.session_var,
+            font=ctk.CTkFont(weight="bold"),
+        ).grid(row=2, column=1, padx=(0, 20), pady=(0, 16), sticky="e")
 
-        fields_frame = ctk.CTkFrame(self, fg_color="transparent")
-        fields_frame.grid(row=2, column=0, padx=24, pady=18, sticky="ew")
-        fields_frame.grid_columnconfigure((1, 3), weight=1)
+        fields_frame = ctk.CTkFrame(self, corner_radius=12, fg_color="#191c22")
+        fields_frame.grid(row=2, column=0, padx=32, pady=(0, 14), sticky="ew")
+        fields_frame.grid_columnconfigure((0, 1), weight=1, uniform="fields")
 
-        ctk.CTkLabel(fields_frame, text="Searches").grid(
-            row=0, column=0, padx=(0, 8), sticky="w"
+        ctk.CTkLabel(
+            fields_frame,
+            text="CONFIGURATION",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#9ca3af",
+        ).grid(row=0, column=0, columnspan=2, padx=20, pady=(16, 12), sticky="w")
+
+        searches_frame = ctk.CTkFrame(fields_frame, fg_color="transparent")
+        searches_frame.grid(row=1, column=0, padx=(20, 8), pady=(0, 18), sticky="ew")
+        searches_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(searches_frame, text="Searches", anchor="w").grid(
+            row=0, column=0, pady=(0, 6), sticky="ew"
         )
         self.searches_entry = ctk.CTkEntry(
-            fields_frame, textvariable=self.searches_var, width=100
+            searches_frame,
+            textvariable=self.searches_var,
+            height=38,
+            border_width=1,
         )
-        self.searches_entry.grid(row=0, column=1, padx=(0, 18), sticky="ew")
+        self.searches_entry.grid(row=1, column=0, sticky="ew")
 
-        ctk.CTkLabel(fields_frame, text="Delay").grid(
-            row=0, column=2, padx=(0, 8), sticky="w"
+        delay_frame = ctk.CTkFrame(fields_frame, fg_color="transparent")
+        delay_frame.grid(row=1, column=1, padx=(8, 20), pady=(0, 18), sticky="ew")
+        delay_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(delay_frame, text="Delay (seconds)", anchor="w").grid(
+            row=0, column=0, pady=(0, 6), sticky="ew"
         )
         self.delay_entry = ctk.CTkEntry(
-            fields_frame, textvariable=self.delay_var, width=100
+            delay_frame,
+            textvariable=self.delay_var,
+            height=38,
+            border_width=1,
         )
-        self.delay_entry.grid(row=0, column=3, sticky="ew")
+        self.delay_entry.grid(row=1, column=0, sticky="ew")
 
-        buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
-        buttons_frame.grid(row=3, column=0, padx=24, sticky="ew")
-        buttons_frame.grid_columnconfigure((0, 1), weight=1)
+        execution_frame = ctk.CTkFrame(self, corner_radius=12, fg_color="#191c22")
+        execution_frame.grid(
+            row=3, column=0, padx=32, pady=(0, 28), sticky="nsew"
+        )
+        execution_frame.grid_columnconfigure((0, 1), weight=1, uniform="actions")
+        execution_frame.grid_rowconfigure(3, weight=1)
+
+        ctk.CTkLabel(
+            execution_frame,
+            text="EXECUTION",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#9ca3af",
+        ).grid(row=0, column=0, columnspan=2, padx=20, pady=(16, 14), sticky="w")
 
         self.start_button = ctk.CTkButton(
-            buttons_frame, text="Start", command=self.start
+            execution_frame,
+            text="Start",
+            command=self.start,
+            height=40,
+            font=ctk.CTkFont(weight="bold"),
         )
-        self.start_button.grid(row=0, column=0, padx=(0, 6), sticky="ew")
+        self.start_button.grid(
+            row=1, column=0, padx=(20, 6), pady=(0, 20), sticky="ew"
+        )
         self.stop_button = ctk.CTkButton(
-            buttons_frame,
+            execution_frame,
             text="Stop",
             command=self.stop,
             state="disabled",
+            height=40,
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#b91c1c",
+            hover_color="#991b1b",
         )
-        self.stop_button.grid(row=0, column=1, padx=(6, 0), sticky="ew")
+        self.stop_button.grid(
+            row=1, column=1, padx=(6, 20), pady=(0, 20), sticky="ew"
+        )
 
-        self.progress = ctk.CTkProgressBar(self)
-        self.progress.grid(row=4, column=0, padx=24, pady=(24, 10), sticky="ew")
+        self.progress = ctk.CTkProgressBar(
+            execution_frame,
+            height=10,
+            corner_radius=5,
+            progress_color="#3b82f6",
+        )
+        self.progress.grid(
+            row=2, column=0, columnspan=2, padx=20, pady=(0, 16), sticky="ew"
+        )
         self.progress.set(0)
 
         self.status_label = ctk.CTkLabel(
-            self,
+            execution_frame,
             textvariable=self.status_var,
-            wraplength=420,
+            text_color="#cbd5e1",
+            anchor="w",
+            justify="left",
+            wraplength=480,
         )
-        self.status_label.grid(row=5, column=0, padx=24, pady=(0, 20))
+        self.status_label.grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            padx=20,
+            pady=(0, 18),
+            sticky="ew",
+        )
 
     def _load_initial_values(self):
         try:
