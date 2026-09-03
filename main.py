@@ -28,10 +28,11 @@ def open_tabs(tab_count, search_delay):
     base_url = "https://www.bing.com/search?q=como "
     end_url = "&form=TSASDS"
 
-    for _ in range(tab_count):
+    for completed_searches in range(1, tab_count + 1):
         search_url = base_url + create_term() + end_url
         webbrowser.open(search_url)
         sleep(search_delay)
+        print_progress(completed_searches, tab_count)
 
     close_tabs(tab_count)
 
@@ -43,7 +44,6 @@ def close_tabs(tab_count):
             check=False,
         )
         sleep(TAB_CLOSE_DELAY_SECONDS)
-    print("TUDO FEITO")
 
 
 def positive_integer(value):
@@ -136,7 +136,8 @@ def find_browser(environment=None):
 
 def check_environment(environment=None):
     session_type = detect_session(environment)
-    detect_compositor(environment)
+    compositor = detect_compositor(environment)
+    browser = find_browser(environment)
     environment_ready = True
 
     if session_type is None:
@@ -157,23 +158,90 @@ def check_environment(environment=None):
         print("Instale no Arch Linux: sudo pacman -S ydotool", file=sys.stderr)
         environment_ready = False
 
-    if find_browser(environment) is None:
+    if browser is None:
         print("[x] Nenhum navegador disponível foi encontrado.", file=sys.stderr)
         environment_ready = False
 
-    return environment_ready
+    if not environment_ready:
+        return None
+
+    return {
+        "browser": browser,
+        "session": session_type,
+        "compositor": compositor,
+    }
+
+
+def format_browser_name(browser):
+    try:
+        command = shlex.split(browser)[0]
+    except (ValueError, IndexError):
+        command = browser
+
+    return os.path.basename(command)
+
+
+def format_session(session_type, compositor):
+    if session_type is None:
+        session_name = "Unknown"
+    elif session_type == "x11":
+        session_name = "X11"
+    else:
+        session_name = session_type.capitalize()
+
+    if compositor:
+        return f"{session_name} / {compositor}"
+
+    return session_name
+
+
+def format_delay(delay):
+    return f"{delay:g}s"
+
+
+def print_summary(environment_info, search_count, search_delay):
+    browser = format_browser_name(environment_info["browser"])
+    session = format_session(
+        environment_info["session"], environment_info["compositor"]
+    )
+
+    print("auto-rewards")
+    print()
+    print(f"Browser:   {browser}")
+    print(f"Session:   {session}")
+    print(f"Searches:  {search_count}")
+    print(f"Delay:     {format_delay(search_delay)}")
+    print()
+
+
+def print_progress(completed_searches, total_searches):
+    number_width = max(2, len(str(total_searches)))
+    print(
+        f"[{completed_searches:0{number_width}d}/"
+        f"{total_searches:0{number_width}d}] pesquisa concluída"
+    )
+
+
+def print_completion(search_count):
+    if search_count == 1:
+        print("1 pesquisa concluída.")
+    else:
+        print(f"{search_count} pesquisas concluídas.")
 
 
 def main(arguments=None):
     options = parse_arguments(arguments)
 
     try:
-        if not check_environment():
+        environment_info = check_environment()
+        if environment_info is None:
             return 1
 
+        print_summary(environment_info, options.searches, options.delay)
         open_tabs(options.searches, options.delay)
+        print_completion(options.searches)
     except KeyboardInterrupt:
-        print("\nExecução interrompida pelo usuário.", file=sys.stderr)
+        print("\nExecução interrompida.", file=sys.stderr)
         return 130
 
     return 0
