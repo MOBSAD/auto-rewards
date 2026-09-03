@@ -22,5 +22,8 @@ Repository = "https://github.com/MOBSAD/auto-rewards"
 [project.scripts]
 auto-rewards = "main:main"
 
+[project.gui-scripts]
+auto-rewards-gui = "gui:main"
+
 [tool.setuptools]
 py-modules = ["main", "gui"]
