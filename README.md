@@ -1,75 +1,119 @@
-# Bing Rewards Search Automator (Wayland/Arch Linux)
+# auto-rewards
 
-Este script em Python automatiza o processo de pesquisa no Microsoft Bing para acumular pontos diários no Microsoft Rewards. Ele gera termos aleatórios, abre abas no navegador padrão e as fecha automaticamente utilizando o `ydotool`.
+O **auto-rewards** automatiza pesquisas no Microsoft Bing usando o navegador padrão e fecha as abas com `ydotool`. O projeto é voltado principalmente para Linux com Wayland, incluindo Hyprland, e oferece uma CLI e uma interface gráfica em CustomTkinter.
 
-## 🚀 Funcionalidades
+Use apenas em uma conta Microsoft já autenticada no navegador e respeite os termos aplicáveis ao serviço.
 
-* **Buscas Aleatórias**: Gera strings aleatórias para evitar padrões repetitivos de pesquisa.
-* **Controle de Tempo**: Possui intervalos de espera (`sleep`) para garantir que a página carregue e os pontos sejam contabilizados.
-* **Fechamento Automático**: Simula o atalho de teclado `Ctrl+W` para fechar as abas após a execução, mantendo seu navegador limpo.
-* **Compatibilidade com Wayland**: Diferente de ferramentas baseadas em X11, este script utiliza o `ydotool` para funcionar corretamente em ambientes como Hyprland.
+## Recursos
 
-## 🛠️ Pré-requisitos
+- CLI compacta com progresso no terminal.
+- GUI em modo escuro com Start, Stop e barra de progresso.
+- Quantidade de pesquisas e intervalo configuráveis.
+- Configuração TOML opcional seguindo o padrão XDG.
+- Modos `--dry-run` e `--verbose`.
+- Detecção básica de sessão, Hyprland, navegador e `ydotool`.
+- Cancelamento cooperativo na GUI.
 
-Você precisa estar com uma conta microsoft logada.
-Como você está utilizando **Arch Linux**, pode instalar as dependências necessárias diretamente via terminal:
+## Requisitos
 
-1. **Python 3.11 ou mais recente**: O projeto usa `tomllib`, incluído na biblioteca padrão a partir do Python 3.11.
-2. **ydotool**: Ferramenta essencial para simular entradas de teclado no Wayland.
+- Python 3.11 ou mais recente.
+- Linux; Wayland é o ambiente principal.
+- Navegador disponível pelo módulo `webbrowser` do Python ou pela variável `BROWSER`.
+- `ydotool` e seu daemon para fechar abas durante execuções reais.
+- Tk, necessário para a GUI com CustomTkinter.
 
-    ```bash
-    sudo pacman -S ydotool
-    ```
+Hyprland é detectado para diagnóstico, mas não é obrigatório. Em X11 ou quando o tipo da sessão não pode ser identificado, o programa exibe um aviso e tenta continuar.
 
-3. **Configuração do ydotool**: O daemon precisa estar ativo para que o script funcione:
+No Arch Linux, instale o `ydotool` com:
 
-    ```bash
-    ydotoold
-    #eu recomendo adicionar um exec-once-ydotoold no seu .config/hypr/hyprland.conf caso use Hyprland
-    ```
+```bash
+sudo pacman -S ydotool
+```
 
-    *Nota: Pode ser necessário adicionar seu usuário ao grupo `input` para permissões de execução:* `sudo usermod -aG input $USER`
+O daemon deve estar ativo antes de uma execução real:
 
-## 💻 Como Usar
+```bash
+ydotoold
+```
 
-1. **Clone o repositório**:
+## Instalação
 
-    ```bash
-    git clone https://github.com/MOBSAD/auto-rewards.git
-    cd auto-rewards
-    ```
+Clone o repositório:
 
-2. **Execução**:
-    Inicie o script com o navegador de sua preferência (como o Thorium) já aberto:
+```bash
+git clone https://github.com/MOBSAD/auto-rewards.git
+cd auto-rewards
+```
 
-    ```bash
-    python main.py
-    ```
+A forma recomendada é instalar com `pipx`, que mantém o aplicativo isolado:
 
-    Por padrão, são realizadas 15 pesquisas com intervalo de 7 segundos. As opções disponíveis podem ser consultadas com:
+```bash
+pipx install .
+```
 
-    ```bash
-    python main.py --help
-    ```
+Como alternativa, instale no ambiente Python ativo:
 
-    Exemplos:
+```bash
+python -m pip install .
+```
 
-    ```bash
-    python main.py -n 20 --delay 5
-    python main.py --dry-run
-    python main.py --verbose
-    python main.py --dry-run --verbose
-    ```
+O pacote instala dois comandos:
 
-## ⚙️ Configuração persistente
+```text
+auto-rewards       CLI
+auto-rewards-gui   GUI
+```
 
-A configuração é opcional. Quando presente, o arquivo deve ficar em:
+## Uso
+
+### CLI
+
+```bash
+auto-rewards
+auto-rewards -n 20 --delay 5
+auto-rewards --dry-run
+auto-rewards --verbose
+auto-rewards --dry-run --verbose
+```
+
+Opções disponíveis:
+
+| Opção | Descrição |
+| --- | --- |
+| `-n`, `--searches N` | Quantidade de pesquisas; deve ser um inteiro maior que zero. |
+| `--delay SECONDS` | Intervalo entre pesquisas; aceita número positivo inteiro ou decimal. |
+| `--dry-run` | Mostra as ações planejadas sem abrir navegador, executar `ydotool` ou aguardar delays. |
+| `--verbose` | Mostra ambiente detectado, queries, URLs, delays e ações executadas. |
+| `-h`, `--help` | Mostra a ajuda da CLI. |
+
+Os defaults internos são 15 pesquisas e 7 segundos de intervalo.
+
+### GUI
+
+```bash
+auto-rewards-gui
+```
+
+A GUI carrega os defaults da configuração, valida os campos e executa as pesquisas em uma thread. O botão **Stop** solicita cancelamento sem encerrar o processo à força; abas já abertas ainda são fechadas.
+
+### Execução direta
+
+Com as dependências instaladas, os dois modos também podem ser iniciados diretamente no repositório:
+
+```bash
+python main.py
+python gui.py
+```
+
+## Configuração
+
+A configuração é opcional e não é criada automaticamente. O caminho padrão é:
 
 ```text
 ~/.config/auto-rewards/config.toml
 ```
 
-Se `XDG_CONFIG_HOME` estiver definido, o caminho usado será:
+Quando `XDG_CONFIG_HOME` estiver definido, o caminho será:
 
 ```text
 $XDG_CONFIG_HOME/auto-rewards/config.toml
@@ -82,21 +126,63 @@ searches = 15
 delay = 7
 ```
 
-`searches` deve ser um número inteiro maior que zero. `delay` aceita um número inteiro ou decimal maior que zero. O arquivo não é obrigatório nem criado automaticamente.
+`searches` deve ser um inteiro maior que zero. `delay` aceita inteiro ou decimal maior que zero. TOML inválido ou valores incompatíveis produzem um erro claro.
 
-Os valores são escolhidos nesta ordem de prioridade:
+Na CLI, a prioridade é:
 
 ```text
 argumentos da CLI > config.toml > defaults internos
 ```
 
-Por exemplo, com `searches = 15` no arquivo, `python main.py -n 5` executa cinco pesquisas.
+Por exemplo, `auto-rewards -n 5` substitui temporariamente um valor `searches` definido no arquivo.
 
-## ⚠️ Observações
+## Testes
 
-* **Foco da Janela**: O script simula comandos de teclado globais. Certifique-se de que o navegador esteja em foco para que o fechamento das abas ocorra corretamente.
-* **Segurança**: Este script foi desenvolvido para uso pessoal e automatização de tarefas simples de navegação.
+Os testes usam apenas a biblioteca padrão e não abrem navegador, GUI ou executam `ydotool`:
 
-## 📄 Licença
+```bash
+python -m unittest
+```
 
-Este projeto está sob a licença MIT.
+## Limitações
+
+- O projeto é focado em Linux/Wayland; não há suporte específico para X11, macOS ou Windows.
+- A detecção de Hyprland depende de `HYPRLAND_INSTANCE_SIGNATURE`.
+- O navegador é aberto pelo mecanismo padrão do Python; ainda não existe opção `--browser`.
+- O fechamento usa o atalho global `Ctrl+W`. A janela correta precisa permanecer em foco.
+- A GUI permite alterar valores para a execução atual, mas não grava o arquivo de configuração.
+- Stop é cooperativo: a pesquisa atual pode precisar encerrar sua etapa antes da finalização.
+
+## Solução de problemas
+
+### `ydotool` não encontrado
+
+Instale o pacote e confirme que `ydotool` está no `PATH`:
+
+```bash
+command -v ydotool
+```
+
+### Abas não fecham
+
+Confirme que `ydotoold` está ativo, que o usuário possui as permissões necessárias para dispositivos de entrada e que o navegador está em foco.
+
+### Navegador não detectado
+
+Confirme que existe um navegador no `PATH` ou defina `BROWSER`, por exemplo:
+
+```bash
+export BROWSER=firefox
+```
+
+### Sessão não identificada
+
+Confira a variável usada pela detecção:
+
+```bash
+echo "$XDG_SESSION_TYPE"
+```
+
+### GUI não inicia
+
+Confirme que a instalação incluiu `customtkinter` e que o Python possui suporte a Tk. A CLI continua disponível pelo comando `auto-rewards`.

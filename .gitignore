@@ -11,6 +11,11 @@ __pycache__/
 *.py[cod]
 *.class
 
+# Empacotamento
+build/
+dist/
+*.egg-info/
+
 # Outros
 .DS_Store
 .env
