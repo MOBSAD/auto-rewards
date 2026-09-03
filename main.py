@@ -8,20 +8,27 @@ from string import ascii_letters
 import subprocess
 import sys
 from time import sleep
+from urllib.parse import urlencode
 import webbrowser
 
 DEFAULT_SEARCH_COUNT = 15
 DEFAULT_SEARCH_DELAY_SECONDS = 7
 TAB_CLOSE_DELAY_SECONDS = 0.5
 COMMON_BROWSERS = ("firefox", "chromium", "google-chrome", "brave-browser")
+BING_SEARCH_URL = "https://www.bing.com/search"
 
 
-def create_term():
+def generate_search_term():
     term = ""
     for _ in range(9):
         term += ascii_letters[randrange(len(ascii_letters) - 4)]
 
     return term
+
+
+def build_search_url(query):
+    parameters = urlencode({"q": query, "form": "TSASDS"})
+    return f"{BING_SEARCH_URL}?{parameters}"
 
 
 def print_verbose(message, verbose):
@@ -30,13 +37,11 @@ def print_verbose(message, verbose):
 
 
 def open_tabs(tab_count, search_delay, dry_run=False, verbose=False):
-    base_url = "https://www.bing.com/search?q=como "
-    end_url = "&form=TSASDS"
-
     for completed_searches in range(1, tab_count + 1):
-        search_term = create_term()
-        search_url = base_url + search_term + end_url
-        print_verbose(f"Query gerada: como {search_term}", verbose)
+        search_term = generate_search_term()
+        search_query = f"como {search_term}"
+        search_url = build_search_url(search_query)
+        print_verbose(f"Query gerada: {search_query}", verbose)
         print_verbose(f"URL gerada: {search_url}", verbose)
 
         if dry_run:
