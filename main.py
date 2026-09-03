@@ -38,8 +38,32 @@ def print_verbose(message, verbose):
         print(f"[verbose] {message}")
 
 
-def open_tabs(tab_count, search_delay, dry_run=False, verbose=False):
-    for completed_searches in range(1, tab_count + 1):
+def wait_for_delay(delay, cancel_event=None):
+    if cancel_event is None:
+        sleep(delay)
+        return False
+
+    return cancel_event.wait(delay)
+
+
+def open_tabs(
+    tab_count,
+    search_delay,
+    dry_run=False,
+    verbose=False,
+    progress_callback=None,
+    status_callback=None,
+    cancel_event=None,
+):
+    completed_searches = 0
+    opened_tabs = 0
+    cancelled = False
+
+    for search_number in range(1, tab_count + 1):
+        if cancel_event is not None and cancel_event.is_set():
+            cancelled = True
+            break
+
         search_term = generate_search_term()
         search_query = f"como {search_term}"
         search_url = build_search_url(search_query)
@@ -50,13 +74,28 @@ def open_tabs(tab_count, search_delay, dry_run=False, verbose=False):
             print(f"[dry-run] Abriria no navegador: {search_url}")
             print(f"[dry-run] Aguardaria {format_delay(search_delay)}")
         else:
+            if status_callback:
+                status_callback(f"Opening search {search_number}/{tab_count}")
             print_verbose("Abrindo URL no navegador padrão", verbose)
             webbrowser.open(search_url)
+            opened_tabs += 1
             print_verbose(f"Aguardando {format_delay(search_delay)}", verbose)
-            sleep(search_delay)
-            print_progress(completed_searches, tab_count)
+            if wait_for_delay(search_delay, cancel_event):
+                cancelled = True
+                break
 
-    close_tabs(tab_count, dry_run, verbose)
+            completed_searches = search_number
+            if progress_callback:
+                progress_callback(completed_searches, tab_count)
+            else:
+                print_progress(completed_searches, tab_count)
+
+    tabs_to_close = tab_count if dry_run else opened_tabs
+    if status_callback and tabs_to_close:
+        status_callback(f"Closing {tabs_to_close} tabs")
+    close_tabs(tabs_to_close, dry_run, verbose)
+
+    return completed_searches, cancelled
 
 
 def close_tabs(tab_count, dry_run=False, verbose=False):
@@ -81,7 +120,7 @@ def close_tabs(tab_count, dry_run=False, verbose=False):
         print_verbose(
             f"Aguardando {format_delay(TAB_CLOSE_DELAY_SECONDS)}", verbose
         )
-        sleep(TAB_CLOSE_DELAY_SECONDS)
+        wait_for_delay(TAB_CLOSE_DELAY_SECONDS)
 
 
 def positive_integer(value):
@@ -242,32 +281,45 @@ def find_browser(environment=None):
     return getattr(browser_controller, "name", browser_controller.__class__.__name__)
 
 
-def check_environment(environment=None, require_dependencies=True):
+def report_environment_message(message, message_callback=None):
+    if message_callback:
+        message_callback(message)
+    else:
+        print(message, file=sys.stderr)
+
+
+def check_environment(
+    environment=None, require_dependencies=True, message_callback=None
+):
     session_type = detect_session(environment)
     compositor = detect_compositor(environment)
     browser = find_browser(environment)
     environment_ready = True
 
     if session_type is None:
-        print(
+        report_environment_message(
             "[!] Não foi possível identificar a sessão gráfica "
             "(XDG_SESSION_TYPE ausente).",
-            file=sys.stderr,
+            message_callback,
         )
     elif session_type != "wayland":
-        print(
+        report_environment_message(
             f"[!] Sessão {session_type.upper()} detectada; "
             "este programa é focado em Wayland.",
-            file=sys.stderr,
+            message_callback,
         )
 
     if require_dependencies and shutil.which("ydotool") is None:
-        print("[x] ydotool não encontrado.", file=sys.stderr)
-        print("Instale no Arch Linux: sudo pacman -S ydotool", file=sys.stderr)
+        report_environment_message("[x] ydotool não encontrado.", message_callback)
+        report_environment_message(
+            "Instale no Arch Linux: sudo pacman -S ydotool", message_callback
+        )
         environment_ready = False
 
     if require_dependencies and browser is None:
-        print("[x] Nenhum navegador disponível foi encontrado.", file=sys.stderr)
+        report_environment_message(
+            "[x] Nenhum navegador disponível foi encontrado.", message_callback
+        )
         environment_ready = False
 
     if not environment_ready:

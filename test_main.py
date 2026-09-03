@@ -4,8 +4,9 @@ import io
 from pathlib import Path
 from string import ascii_letters
 import tempfile
+import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
 import main
@@ -222,6 +223,72 @@ class ExecutionTests(unittest.TestCase):
 
         self.assertEqual(result, 1)
         open_tabs.assert_not_called()
+
+    def test_reusable_execution_reports_progress_and_status(self):
+        progress_updates = []
+        status_updates = []
+
+        with patch(
+            "main.generate_search_term", return_value="AbCdEfGhi"
+        ), patch("main.webbrowser.open") as open_browser, patch(
+            "main.subprocess.run"
+        ) as run_command, patch("main.sleep"):
+            completed, cancelled = main.open_tabs(
+                2,
+                7,
+                progress_callback=lambda current, total: progress_updates.append(
+                    (current, total)
+                ),
+                status_callback=status_updates.append,
+            )
+
+        self.assertEqual((completed, cancelled), (2, False))
+        self.assertEqual(progress_updates, [(1, 2), (2, 2)])
+        self.assertIn("Opening search 1/2", status_updates)
+        self.assertIn("Closing 2 tabs", status_updates)
+        self.assertEqual(open_browser.call_count, 2)
+        self.assertEqual(run_command.call_count, 2)
+
+    def test_reusable_execution_can_be_cancelled(self):
+        cancel_event = threading.Event()
+        cancel_event.set()
+
+        with patch("main.webbrowser.open") as open_browser, patch(
+            "main.subprocess.run"
+        ) as run_command, patch("main.sleep") as wait:
+            completed, cancelled = main.open_tabs(
+                2,
+                7,
+                progress_callback=lambda _current, _total: None,
+                cancel_event=cancel_event,
+            )
+
+        self.assertEqual((completed, cancelled), (0, True))
+        open_browser.assert_not_called()
+        run_command.assert_not_called()
+        wait.assert_not_called()
+
+    def test_cancellation_closes_an_already_opened_tab(self):
+        cancel_event = Mock()
+        cancel_event.is_set.return_value = False
+        cancel_event.wait.return_value = True
+
+        with patch(
+            "main.generate_search_term", return_value="AbCdEfGhi"
+        ), patch("main.webbrowser.open") as open_browser, patch(
+            "main.subprocess.run"
+        ) as run_command, patch("main.sleep") as wait:
+            completed, cancelled = main.open_tabs(
+                2,
+                7,
+                progress_callback=lambda _current, _total: None,
+                cancel_event=cancel_event,
+            )
+
+        self.assertEqual((completed, cancelled), (0, True))
+        open_browser.assert_called_once()
+        run_command.assert_called_once()
+        wait.assert_called_once_with(main.TAB_CLOSE_DELAY_SECONDS)
 
 
 if __name__ == "__main__":
