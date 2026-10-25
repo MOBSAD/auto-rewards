@@ -6,7 +6,7 @@ from string import ascii_letters
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
 import main
@@ -144,7 +144,9 @@ class EnvironmentTests(unittest.TestCase):
     def test_check_environment_returns_detected_values(self):
         with patch("main.detect_session", return_value="wayland"), patch(
             "main.detect_compositor", return_value="Hyprland"
-        ), patch("main.find_browser", return_value="firefox"):
+        ), patch("main.find_browser", return_value="firefox"), patch(
+            "main.shutil.which", return_value="/usr/bin/ydotool"
+        ):
             environment_info = main.check_environment({})
 
         self.assertEqual(
@@ -153,6 +155,7 @@ class EnvironmentTests(unittest.TestCase):
                 "browser": "firefox",
                 "session": "wayland",
                 "compositor": "Hyprland",
+                "tab_closer": ["ydotool", "key", "29:1", "17:1", "17:0", "29:0"],
             },
         )
 
@@ -174,6 +177,7 @@ class ExecutionTests(unittest.TestCase):
         "browser": None,
         "session": "wayland",
         "compositor": None,
+        "tab_closer": ["ydotool", "key", "29:1", "17:1", "17:0", "29:0"],
     }
 
     def test_dry_run_has_no_external_effects(self):
@@ -226,7 +230,9 @@ class ExecutionTests(unittest.TestCase):
 
         with patch(
             "main.generate_search_term", return_value="AbCdEfGhi"
-        ), patch("main.webbrowser.open") as open_browser, patch("main.sleep"):
+        ), patch("main.webbrowser.open") as open_browser, patch(
+            "main.subprocess.run", return_value=Mock(returncode=0, stderr="")
+        ) as run_command, patch("main.sleep"):
             completed, cancelled = main.open_tabs(
                 2,
                 7,
@@ -234,12 +240,15 @@ class ExecutionTests(unittest.TestCase):
                     (current, total)
                 ),
                 status_callback=status_updates.append,
+                close_command=["ydotool", "key", "29:1", "17:1", "17:0", "29:0"],
             )
 
         self.assertEqual((completed, cancelled), (2, False))
         self.assertEqual(progress_updates, [(1, 2), (2, 2)])
         self.assertIn("Opening search 1/2", status_updates)
+        self.assertIn("Closing 2 tabs", status_updates)
         self.assertEqual(open_browser.call_count, 2)
+        self.assertEqual(run_command.call_count, 2)
 
     def test_reusable_execution_can_be_cancelled(self):
         cancel_event = threading.Event()

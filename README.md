@@ -1,6 +1,6 @@
 # auto-rewards
 
-O **auto-rewards** automatiza pesquisas no Microsoft Bing usando o navegador padrão. O projeto é voltado principalmente para Linux com Wayland, incluindo Hyprland, e oferece uma CLI e uma interface gráfica em CustomTkinter.
+O **auto-rewards** automatiza pesquisas no Microsoft Bing usando o navegador padrão e fecha as abas abertas ao final. O projeto funciona em Linux com X11 (como XFCE) e Wayland (como Hyprland), e oferece uma CLI e uma interface gráfica em CustomTkinter.
 
 Use apenas em uma conta Microsoft já autenticada no navegador e respeite os termos aplicáveis ao serviço.
 
@@ -11,17 +11,18 @@ Use apenas em uma conta Microsoft já autenticada no navegador e respeite os ter
 - Quantidade de pesquisas e intervalo configuráveis.
 - Configuração TOML opcional seguindo o padrão XDG.
 - Modos `--dry-run` e `--verbose`.
-- Detecção básica de sessão, Hyprland e navegador.
+- Detecção de sessão X11/Wayland, Hyprland e navegador.
 - Cancelamento cooperativo na GUI.
 
 ## Requisitos
 
 - Python 3.11 ou mais recente.
-- Linux; Wayland é o ambiente principal.
+- Linux com X11 ou Wayland.
 - Navegador disponível pelo módulo `webbrowser` do Python ou pela variável `BROWSER`.
+- `xdotool` no X11 (por exemplo, XFCE) ou `ydotool` no Wayland (por exemplo, Hyprland).
 - Tk, necessário para a GUI com CustomTkinter.
 
-Hyprland é detectado para diagnóstico, mas não é obrigatório. Em X11 ou quando o tipo da sessão não pode ser identificado, o programa exibe um aviso e tenta continuar.
+O programa usa `xdotool` em sessões X11 e `ydotool` em sessões Wayland para fechar as abas ao término. Mantenha o navegador em foco durante a execução e não alterne para outra janela até a finalização.
 
 ## Instalação
 
@@ -69,7 +70,7 @@ Opções disponíveis:
 | --- | --- |
 | `-n`, `--searches N` | Quantidade de pesquisas; deve ser um inteiro maior que zero. |
 | `--delay SECONDS` | Intervalo entre pesquisas; aceita número positivo inteiro ou decimal. |
-| `--dry-run` | Mostra as ações planejadas sem abrir o navegador ou aguardar delays. |
+| `--dry-run` | Mostra as ações planejadas sem abrir, fechar abas ou aguardar delays. |
 | `--verbose` | Mostra ambiente detectado, queries, URLs, delays e ações executadas. |
 | `-h`, `--help` | Mostra a ajuda da CLI. |
 
@@ -81,7 +82,7 @@ Os defaults internos são 15 pesquisas e 7 segundos de intervalo.
 auto-rewards-gui
 ```
 
-A GUI carrega os defaults da configuração, valida os campos e executa as pesquisas em uma thread. O botão **Stop** solicita cancelamento sem encerrar o processo à força. As abas abertas permanecem no navegador para evitar que abas não relacionadas sejam fechadas.
+A GUI carrega os defaults da configuração, valida os campos e executa as pesquisas em uma thread. O botão **Stop** solicita cancelamento sem encerrar o processo à força; as abas que a execução abriu são fechadas ao final.
 
 ### Execução direta
 
@@ -133,14 +134,22 @@ python -m unittest
 
 ## Limitações
 
-- O projeto é focado em Linux/Wayland; não há suporte específico para X11, macOS ou Windows.
+- O projeto suporta Linux com X11 e Wayland; não há suporte para macOS ou Windows.
 - A detecção de Hyprland depende de `HYPRLAND_INSTANCE_SIGNATURE`.
 - O navegador é aberto pelo mecanismo padrão do Python; ainda não existe opção `--browser`.
-- As abas abertas pela execução não são fechadas automaticamente.
+- O fechamento usa `Ctrl+W` global; o navegador deve permanecer em foco para evitar fechar uma aba não relacionada.
 - A GUI permite alterar valores para a execução atual, mas não grava o arquivo de configuração.
 - Stop é cooperativo: a pesquisa atual pode precisar encerrar sua etapa antes da finalização.
 
 ## Solução de problemas
+
+### `xdotool` ou `ydotool` não encontrado
+
+Em uma sessão X11/XFCE, instale `xdotool`. Em uma sessão Wayland/Hyprland, instale `ydotool` e mantenha `ydotoold` ativo. Consulte o gerenciador de pacotes da sua distribuição.
+
+### Abas não fecham
+
+Confirme que o navegador permaneceu em foco e que o utilitário correspondente à sua sessão está disponível. O programa exibirá um erro se o comando de fechamento retornar falha.
 
 ### Navegador não detectado
 

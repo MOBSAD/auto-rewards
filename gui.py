@@ -46,7 +46,7 @@ class AutoRewardsApp(ctk.CTk):
         ).grid(row=0, column=0, sticky="ew")
         ctk.CTkLabel(
             header,
-            text="Automate reward searches on Linux / Wayland",
+            text="Automate reward searches on Linux / X11 / Wayland",
             text_color="#9ca3af",
             anchor="w",
         ).grid(row=1, column=0, pady=(4, 0), sticky="ew")
@@ -235,7 +235,7 @@ class AutoRewardsApp(ctk.CTk):
 
         self.worker = threading.Thread(
             target=self._run_searches,
-            args=(search_count, search_delay),
+            args=(search_count, search_delay, environment_info["tab_closer"]),
             daemon=True,
         )
         self.worker.start()
@@ -246,7 +246,7 @@ class AutoRewardsApp(ctk.CTk):
             self.stop_button.configure(state="disabled")
             self.status_var.set("Stopping safely...")
 
-    def _run_searches(self, search_count, search_delay):
+    def _run_searches(self, search_count, search_delay, close_command):
         try:
             completed, cancelled = core.open_tabs(
                 search_count,
@@ -254,6 +254,7 @@ class AutoRewardsApp(ctk.CTk):
                 progress_callback=self._queue_progress,
                 status_callback=self._queue_status,
                 cancel_event=self.cancel_event,
+                close_command=close_command,
             )
         except OSError as error:
             self.after(0, self._finish_with_error, str(error))

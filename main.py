@@ -6,6 +6,7 @@ from random import randrange
 import shlex
 import shutil
 from string import ascii_letters
+import subprocess
 import sys
 from time import sleep
 import tomllib
@@ -14,8 +15,14 @@ import webbrowser
 
 DEFAULT_SEARCH_COUNT = 15
 DEFAULT_SEARCH_DELAY_SECONDS = 7
+TAB_CLOSE_DELAY_SECONDS = 0.5
 COMMON_BROWSERS = ("firefox", "chromium", "google-chrome", "brave-browser")
 BING_SEARCH_URL = "https://www.bing.com/search"
+
+TAB_CLOSERS = {
+    "wayland": ("ydotool", ["ydotool", "key", "29:1", "17:1", "17:0", "29:0"]),
+    "x11": ("xdotool", ["xdotool", "key", "ctrl+w"]),
+}
 
 
 def generate_search_term():
@@ -48,8 +55,10 @@ def open_tabs(
     progress_callback=None,
     status_callback=None,
     cancel_event=None,
+    close_command=None,
 ):
     completed_searches = 0
+    opened_tabs = 0
     cancelled = False
 
     for search_number in range(1, tab_count + 1):
@@ -70,8 +79,9 @@ def open_tabs(
             if status_callback:
                 status_callback(f"Opening search {search_number}/{tab_count}")
             print_verbose("Abrindo URL no navegador padrão", verbose)
-            if not webbrowser.open(search_url):
+            if not webbrowser.open(search_url, new=2, autoraise=True):
                 raise OSError("não foi possível abrir a pesquisa no navegador")
+            opened_tabs += 1
             print_verbose(f"Aguardando {format_delay(search_delay)}", verbose)
             if wait_for_delay(search_delay, cancel_event):
                 cancelled = True
@@ -83,7 +93,39 @@ def open_tabs(
             else:
                 print_progress(completed_searches, tab_count)
 
+    if opened_tabs and not dry_run and close_command is None:
+        raise OSError("comando de fechamento de abas não configurado")
+
+    if status_callback and (opened_tabs or dry_run):
+        status_callback(f"Closing {opened_tabs} tabs")
+    if dry_run:
+        close_tabs(tab_count, close_command or ["fechador indisponível"], True, verbose)
+    else:
+        close_tabs(opened_tabs, close_command, False, verbose)
+
     return completed_searches, cancelled
+
+
+def close_tabs(tab_count, command, dry_run=False, verbose=False):
+    if dry_run:
+        print(
+            f"[dry-run] Fecharia {tab_count} abas com {' '.join(command)} "
+            f"(intervalo: {format_delay(TAB_CLOSE_DELAY_SECONDS)})"
+        )
+        return
+
+    for tab_number in range(1, tab_count + 1):
+        print_verbose(
+            f"Fechando aba {tab_number}/{tab_count}: {' '.join(command)}", verbose
+        )
+        result = subprocess.run(command, check=False, capture_output=True, text=True)
+        if result.returncode:
+            detail = result.stderr.strip() or f"código de saída {result.returncode}"
+            raise OSError(f"não foi possível fechar a aba: {detail}")
+        print_verbose(
+            f"Aguardando {format_delay(TAB_CLOSE_DELAY_SECONDS)}", verbose
+        )
+        wait_for_delay(TAB_CLOSE_DELAY_SECONDS)
 
 
 def positive_integer(value):
@@ -155,7 +197,7 @@ def load_config(config_path):
 
 def parse_arguments(arguments=None, environment=None):
     parser = argparse.ArgumentParser(
-        description="Automatiza pesquisas de recompensas no Linux/Wayland."
+        description="Automatiza pesquisas de recompensas no Linux/X11 e Wayland."
     )
     parser.add_argument(
         "-n",
@@ -216,6 +258,10 @@ def detect_compositor(environment=None):
     return None
 
 
+def get_tab_closer(session_type):
+    return TAB_CLOSERS.get(session_type)
+
+
 def find_browser(environment=None):
     environment = os.environ if environment is None else environment
     configured_browsers = environment.get("BROWSER", "")
@@ -265,16 +311,30 @@ def check_environment(
             "(XDG_SESSION_TYPE ausente).",
             message_callback,
         )
-    elif session_type != "wayland":
+    elif session_type not in TAB_CLOSERS:
         report_environment_message(
             f"[!] Sessão {session_type.upper()} detectada; "
-            "este programa é focado em Wayland.",
+            "são suportadas apenas sessões X11 e Wayland.",
             message_callback,
         )
+        environment_ready = False
 
     if require_dependencies and browser is None:
         report_environment_message(
             "[x] Nenhum navegador disponível foi encontrado.", message_callback
+        )
+        environment_ready = False
+
+    tab_closer = get_tab_closer(session_type)
+    if require_dependencies and tab_closer is None:
+        report_environment_message(
+            "[x] Não foi possível determinar como fechar abas nesta sessão.",
+            message_callback,
+        )
+        environment_ready = False
+    elif require_dependencies and shutil.which(tab_closer[0]) is None:
+        report_environment_message(
+            f"[x] {tab_closer[0]} não encontrado.", message_callback
         )
         environment_ready = False
 
@@ -285,6 +345,7 @@ def check_environment(
         "browser": browser,
         "session": session_type,
         "compositor": compositor,
+        "tab_closer": tab_closer[1] if tab_closer else None,
     }
 
 
@@ -383,6 +444,7 @@ def main(arguments=None):
             options.delay,
             dry_run=options.dry_run,
             verbose=options.verbose,
+            close_command=environment_info["tab_closer"],
         )
         if options.dry_run:
             print_dry_run_completion(options.searches)
