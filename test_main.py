@@ -6,7 +6,7 @@ from string import ascii_letters
 import tempfile
 import threading
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 import main
@@ -144,9 +144,7 @@ class EnvironmentTests(unittest.TestCase):
     def test_check_environment_returns_detected_values(self):
         with patch("main.detect_session", return_value="wayland"), patch(
             "main.detect_compositor", return_value="Hyprland"
-        ), patch("main.find_browser", return_value="firefox"), patch(
-            "main.shutil.which", return_value="/usr/bin/ydotool"
-        ):
+        ), patch("main.find_browser", return_value="firefox"):
             environment_info = main.check_environment({})
 
         self.assertEqual(
@@ -162,13 +160,12 @@ class EnvironmentTests(unittest.TestCase):
         error_output = io.StringIO()
         with patch("main.detect_session", return_value="wayland"), patch(
             "main.detect_compositor", return_value=None
-        ), patch("main.find_browser", return_value=None), patch(
-            "main.shutil.which", return_value=None
-        ), contextlib.redirect_stderr(error_output):
+        ), patch("main.find_browser", return_value=None), contextlib.redirect_stderr(
+            error_output
+        ):
             environment_info = main.check_environment({})
 
         self.assertIsNone(environment_info)
-        self.assertIn("ydotool não encontrado", error_output.getvalue())
         self.assertIn("Nenhum navegador", error_output.getvalue())
 
 
@@ -194,8 +191,8 @@ class ExecutionTests(unittest.TestCase):
         ) as check_environment, patch(
             "main.generate_search_term", return_value="AbCdEfGhi"
         ), patch("main.webbrowser.open") as open_browser, patch(
-            "main.subprocess.run"
-        ) as run_command, patch("main.sleep") as wait, contextlib.redirect_stdout(
+            "main.sleep"
+        ) as wait, contextlib.redirect_stdout(
             output
         ):
             result = main.main([])
@@ -203,7 +200,6 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(result, 0)
         check_environment.assert_called_once_with(require_dependencies=False)
         open_browser.assert_not_called()
-        run_command.assert_not_called()
         wait.assert_not_called()
         self.assertIn("[dry-run] Abriria no navegador", output.getvalue())
 
@@ -230,9 +226,7 @@ class ExecutionTests(unittest.TestCase):
 
         with patch(
             "main.generate_search_term", return_value="AbCdEfGhi"
-        ), patch("main.webbrowser.open") as open_browser, patch(
-            "main.subprocess.run"
-        ) as run_command, patch("main.sleep"):
+        ), patch("main.webbrowser.open") as open_browser, patch("main.sleep"):
             completed, cancelled = main.open_tabs(
                 2,
                 7,
@@ -245,17 +239,15 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual((completed, cancelled), (2, False))
         self.assertEqual(progress_updates, [(1, 2), (2, 2)])
         self.assertIn("Opening search 1/2", status_updates)
-        self.assertIn("Closing 2 tabs", status_updates)
         self.assertEqual(open_browser.call_count, 2)
-        self.assertEqual(run_command.call_count, 2)
 
     def test_reusable_execution_can_be_cancelled(self):
         cancel_event = threading.Event()
         cancel_event.set()
 
         with patch("main.webbrowser.open") as open_browser, patch(
-            "main.subprocess.run"
-        ) as run_command, patch("main.sleep") as wait:
+            "main.sleep"
+        ) as wait:
             completed, cancelled = main.open_tabs(
                 2,
                 7,
@@ -265,30 +257,7 @@ class ExecutionTests(unittest.TestCase):
 
         self.assertEqual((completed, cancelled), (0, True))
         open_browser.assert_not_called()
-        run_command.assert_not_called()
         wait.assert_not_called()
-
-    def test_cancellation_closes_an_already_opened_tab(self):
-        cancel_event = Mock()
-        cancel_event.is_set.return_value = False
-        cancel_event.wait.return_value = True
-
-        with patch(
-            "main.generate_search_term", return_value="AbCdEfGhi"
-        ), patch("main.webbrowser.open") as open_browser, patch(
-            "main.subprocess.run"
-        ) as run_command, patch("main.sleep") as wait:
-            completed, cancelled = main.open_tabs(
-                2,
-                7,
-                progress_callback=lambda _current, _total: None,
-                cancel_event=cancel_event,
-            )
-
-        self.assertEqual((completed, cancelled), (0, True))
-        open_browser.assert_called_once()
-        run_command.assert_called_once()
-        wait.assert_called_once_with(main.TAB_CLOSE_DELAY_SECONDS)
 
 
 if __name__ == "__main__":

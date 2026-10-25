@@ -1,6 +1,6 @@
 # auto-rewards
 
-O **auto-rewards** automatiza pesquisas no Microsoft Bing usando o navegador padrão e fecha as abas com `ydotool`. O projeto é voltado principalmente para Linux com Wayland, incluindo Hyprland, e oferece uma CLI e uma interface gráfica em CustomTkinter.
+O **auto-rewards** automatiza pesquisas no Microsoft Bing usando o navegador padrão. O projeto é voltado principalmente para Linux com Wayland, incluindo Hyprland, e oferece uma CLI e uma interface gráfica em CustomTkinter.
 
 Use apenas em uma conta Microsoft já autenticada no navegador e respeite os termos aplicáveis ao serviço.
 
@@ -11,7 +11,7 @@ Use apenas em uma conta Microsoft já autenticada no navegador e respeite os ter
 - Quantidade de pesquisas e intervalo configuráveis.
 - Configuração TOML opcional seguindo o padrão XDG.
 - Modos `--dry-run` e `--verbose`.
-- Detecção básica de sessão, Hyprland, navegador e `ydotool`.
+- Detecção básica de sessão, Hyprland e navegador.
 - Cancelamento cooperativo na GUI.
 
 ## Requisitos
@@ -19,22 +19,9 @@ Use apenas em uma conta Microsoft já autenticada no navegador e respeite os ter
 - Python 3.11 ou mais recente.
 - Linux; Wayland é o ambiente principal.
 - Navegador disponível pelo módulo `webbrowser` do Python ou pela variável `BROWSER`.
-- `ydotool` e seu daemon para fechar abas durante execuções reais.
 - Tk, necessário para a GUI com CustomTkinter.
 
 Hyprland é detectado para diagnóstico, mas não é obrigatório. Em X11 ou quando o tipo da sessão não pode ser identificado, o programa exibe um aviso e tenta continuar.
-
-No Arch Linux, instale o `ydotool` com:
-
-```bash
-sudo pacman -S ydotool
-```
-
-O daemon deve estar ativo antes de uma execução real:
-
-```bash
-ydotoold
-```
 
 ## Instalação
 
@@ -82,7 +69,7 @@ Opções disponíveis:
 | --- | --- |
 | `-n`, `--searches N` | Quantidade de pesquisas; deve ser um inteiro maior que zero. |
 | `--delay SECONDS` | Intervalo entre pesquisas; aceita número positivo inteiro ou decimal. |
-| `--dry-run` | Mostra as ações planejadas sem abrir navegador, executar `ydotool` ou aguardar delays. |
+| `--dry-run` | Mostra as ações planejadas sem abrir o navegador ou aguardar delays. |
 | `--verbose` | Mostra ambiente detectado, queries, URLs, delays e ações executadas. |
 | `-h`, `--help` | Mostra a ajuda da CLI. |
 
@@ -94,7 +81,7 @@ Os defaults internos são 15 pesquisas e 7 segundos de intervalo.
 auto-rewards-gui
 ```
 
-A GUI carrega os defaults da configuração, valida os campos e executa as pesquisas em uma thread. O botão **Stop** solicita cancelamento sem encerrar o processo à força; abas já abertas ainda são fechadas.
+A GUI carrega os defaults da configuração, valida os campos e executa as pesquisas em uma thread. O botão **Stop** solicita cancelamento sem encerrar o processo à força. As abas abertas permanecem no navegador para evitar que abas não relacionadas sejam fechadas.
 
 ### Execução direta
 
@@ -138,7 +125,7 @@ Por exemplo, `auto-rewards -n 5` substitui temporariamente um valor `searches` d
 
 ## Testes
 
-Os testes usam apenas a biblioteca padrão e não abrem navegador, GUI ou executam `ydotool`:
+Os testes usam apenas a biblioteca padrão e não abrem navegador ou GUI:
 
 ```bash
 python -m unittest
@@ -149,23 +136,11 @@ python -m unittest
 - O projeto é focado em Linux/Wayland; não há suporte específico para X11, macOS ou Windows.
 - A detecção de Hyprland depende de `HYPRLAND_INSTANCE_SIGNATURE`.
 - O navegador é aberto pelo mecanismo padrão do Python; ainda não existe opção `--browser`.
-- O fechamento usa o atalho global `Ctrl+W`. A janela correta precisa permanecer em foco.
+- As abas abertas pela execução não são fechadas automaticamente.
 - A GUI permite alterar valores para a execução atual, mas não grava o arquivo de configuração.
 - Stop é cooperativo: a pesquisa atual pode precisar encerrar sua etapa antes da finalização.
 
 ## Solução de problemas
-
-### `ydotool` não encontrado
-
-Instale o pacote e confirme que `ydotool` está no `PATH`:
-
-```bash
-command -v ydotool
-```
-
-### Abas não fecham
-
-Confirme que `ydotoold` está ativo, que o usuário possui as permissões necessárias para dispositivos de entrada e que o navegador está em foco.
 
 ### Navegador não detectado
 

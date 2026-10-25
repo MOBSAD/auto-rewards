@@ -6,7 +6,6 @@ from random import randrange
 import shlex
 import shutil
 from string import ascii_letters
-import subprocess
 import sys
 from time import sleep
 import tomllib
@@ -15,17 +14,12 @@ import webbrowser
 
 DEFAULT_SEARCH_COUNT = 15
 DEFAULT_SEARCH_DELAY_SECONDS = 7
-TAB_CLOSE_DELAY_SECONDS = 0.5
 COMMON_BROWSERS = ("firefox", "chromium", "google-chrome", "brave-browser")
 BING_SEARCH_URL = "https://www.bing.com/search"
 
 
 def generate_search_term():
-    term = ""
-    for _ in range(9):
-        term += ascii_letters[randrange(len(ascii_letters) - 4)]
-
-    return term
+    return "".join(ascii_letters[randrange(len(ascii_letters))] for _ in range(9))
 
 
 def build_search_url(query):
@@ -56,7 +50,6 @@ def open_tabs(
     cancel_event=None,
 ):
     completed_searches = 0
-    opened_tabs = 0
     cancelled = False
 
     for search_number in range(1, tab_count + 1):
@@ -77,8 +70,8 @@ def open_tabs(
             if status_callback:
                 status_callback(f"Opening search {search_number}/{tab_count}")
             print_verbose("Abrindo URL no navegador padrão", verbose)
-            webbrowser.open(search_url)
-            opened_tabs += 1
+            if not webbrowser.open(search_url):
+                raise OSError("não foi possível abrir a pesquisa no navegador")
             print_verbose(f"Aguardando {format_delay(search_delay)}", verbose)
             if wait_for_delay(search_delay, cancel_event):
                 cancelled = True
@@ -90,37 +83,7 @@ def open_tabs(
             else:
                 print_progress(completed_searches, tab_count)
 
-    tabs_to_close = tab_count if dry_run else opened_tabs
-    if status_callback and tabs_to_close:
-        status_callback(f"Closing {tabs_to_close} tabs")
-    close_tabs(tabs_to_close, dry_run, verbose)
-
     return completed_searches, cancelled
-
-
-def close_tabs(tab_count, dry_run=False, verbose=False):
-    command = ["ydotool", "key", "29:1", "17:1", "17:0", "29:0"]
-
-    if dry_run:
-        print(
-            f"[dry-run] Fecharia {tab_count} abas com ydotool "
-            f"(intervalo: {format_delay(TAB_CLOSE_DELAY_SECONDS)})"
-        )
-        print_verbose(f"Comando de fechamento: {' '.join(command)}", verbose)
-        return
-
-    for tab_number in range(1, tab_count + 1):
-        print_verbose(
-            f"Fechando aba {tab_number}/{tab_count}: {' '.join(command)}", verbose
-        )
-        subprocess.run(
-            command,
-            check=False,
-        )
-        print_verbose(
-            f"Aguardando {format_delay(TAB_CLOSE_DELAY_SECONDS)}", verbose
-        )
-        wait_for_delay(TAB_CLOSE_DELAY_SECONDS)
 
 
 def positive_integer(value):
@@ -309,13 +272,6 @@ def check_environment(
             message_callback,
         )
 
-    if require_dependencies and shutil.which("ydotool") is None:
-        report_environment_message("[x] ydotool não encontrado.", message_callback)
-        report_environment_message(
-            "Instale no Arch Linux: sudo pacman -S ydotool", message_callback
-        )
-        environment_ready = False
-
     if require_dependencies and browser is None:
         report_environment_message(
             "[x] Nenhum navegador disponível foi encontrado.", message_callback
@@ -432,6 +388,9 @@ def main(arguments=None):
             print_dry_run_completion(options.searches)
         else:
             print_completion(options.searches)
+    except OSError as error:
+        print(f"[x] {error}", file=sys.stderr)
+        return 1
     except KeyboardInterrupt:
         print("\nExecução interrompida.", file=sys.stderr)
         return 130
